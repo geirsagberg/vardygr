@@ -1,0 +1,16 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Godot (sourced)",
+      "type": "shell",
+      "command": "zsh",
+      "args": ["-i", "-c", "godot4 --path ."],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
+}
