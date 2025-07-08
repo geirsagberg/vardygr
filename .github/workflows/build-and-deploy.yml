@@ -1,0 +1,61 @@
+name: Build and Deploy Game
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_to_itch:
+        description: 'Deploy to itch.io'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  GODOT_VERSION: 4.4
+  EXPORT_NAME: vardygr
+  PROJECT_PATH: .
+
+jobs:
+  export-web:
+    name: Web Export
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Setup
+        run: |
+          mkdir -v -p ~/.local/share/godot/export_templates
+          mv /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+      - name: Web Build
+        run: |
+          mkdir -v -p build/web
+          cd $PROJECT_PATH
+          godot --headless --verbose --export-release "Web" ../build/web/index.html
+      - name: Upload Web Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: build/web
+
+  deploy-itch:
+    name: Deploy to itch.io
+    runs-on: ubuntu-latest
+    needs: [export-web]
+    if: ${{ inputs.deploy_to_itch }}
+    steps:
+      - name: Download Web Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web
+          path: build/web
+      - name: Deploy to itch.io
+        uses: josephbmanley/butler-publish-itchio-action@master
+        env:
+          BUTLER_CREDENTIALS: ${{ secrets.BUTLER_CREDENTIALS }}
+          CHANNEL: web
+          ITCH_GAME: ${{ secrets.ITCH_GAME }}
+          ITCH_USER: ${{ secrets.ITCH_USER }}
+          PACKAGE: build/web
