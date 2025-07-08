@@ -4,7 +4,7 @@ extends CharacterBody2D
 @onready var camera_target = $CameraTarget
 
 enum { IDLE, RUNNING, JUMPING, FALLING }
-enum { NO_ATTACK, ATTACK_1, ATTACK_2, JUMP_ATTACK, RUN_ATTACK_1 }
+enum { NO_ATTACK, LIGHT_ATTACK_1, LIGHT_ATTACK_2 }
 var queued_attack = false
 
 var movement = IDLE
@@ -12,7 +12,7 @@ var combat = NO_ATTACK
 
 const RUN_SPEED = 120
 const GRAVITY = 1000
-const JUMP_SPEED = -250
+const JUMP_SPEED = -300
 const CAMERA_OFFSET = 96
 
 func _ready() -> void:
@@ -25,7 +25,6 @@ func _physics_process(delta: float) -> void:
 	var left = Input.is_action_pressed("left")
 	var jump = Input.is_action_just_pressed("jump")
 	var attack = Input.is_action_just_pressed("attack")
-	var was_moving = velocity.x != 0
 	
 	# Set velocity from input
 	velocity.x = 0
@@ -35,28 +34,32 @@ func _physics_process(delta: float) -> void:
 		match combat:
 			NO_ATTACK:
 				match movement:
-					IDLE:
-						combat = ATTACK_1
-						sprite.play("idle_attack_1")
-					JUMPING, FALLING:
-						combat = JUMP_ATTACK
-						sprite.play("jump_attack_1")
+					IDLE, JUMPING, FALLING:
+						combat = LIGHT_ATTACK_1
+						sprite.play("light_attack_1")
 					RUNNING:
-						combat = RUN_ATTACK_1
-						sprite.play("run_attack_1")
-			ATTACK_1:
-				queued_attack = true
+						combat = LIGHT_ATTACK_1
+						sprite.play("run_light_attack_1")
+			LIGHT_ATTACK_1:
+				if sprite.frame > 1:
+					match movement:
+						IDLE, JUMPING, FALLING:
+							combat = LIGHT_ATTACK_2
+							sprite.play("light_attack_2")
+						RUNNING:
+							combat = LIGHT_ATTACK_2
+							sprite.play("run_light_attack_2")
+				else:
+					queued_attack = true
 	
-	if combat != ATTACK_1 && combat != ATTACK_2:
-		if right:
-			velocity.x += RUN_SPEED
+	if right:
+		velocity.x += RUN_SPEED
+	
+	if left:
+		velocity.x -= RUN_SPEED
 		
-		if left:
-			velocity.x -= RUN_SPEED
-			
-		if jump:
-			velocity.y = JUMP_SPEED
-		
+	if jump:
+		velocity.y = JUMP_SPEED
 		
 	# Update sprite and camera
 	if velocity.x > 0:
@@ -67,6 +70,7 @@ func _physics_process(delta: float) -> void:
 		camera_target.target_offset_x = -CAMERA_OFFSET
 		
 	# Set movement
+	var prev_movement = movement
 	if !is_on_floor():
 		if velocity.y < 0:
 			movement = JUMPING
@@ -84,26 +88,52 @@ func _physics_process(delta: float) -> void:
 			FALLING: sprite.play("fall")
 			RUNNING: sprite.play("run")
 			_: sprite.play("idle")
-	elif combat == RUN_ATTACK_1 && was_moving && movement == IDLE:
+	elif (prev_movement == JUMPING || prev_movement == FALLING) && movement == RUNNING:
 		var frame = sprite.frame
-		sprite.animation = "jump_attack_1"
+		match sprite.animation:
+			"light_attack_1":
+				sprite.animation = "run_light_attack_1"
+			"light_attack_2":
+				sprite.animation = "run_light_attack_2"
+		sprite.frame = frame
+	elif prev_movement == RUNNING && (movement == JUMPING || movement == IDLE):
+		var frame = sprite.frame
+		sprite.animation = sprite.animation.replace("run_", "")
 		sprite.frame = frame
 		
 	move_and_slide()
 
 func _on_animated_sprite_2d_animation_finished() -> void:
 	match sprite.animation:
-		"idle_attack_1":
+		"light_attack_1":
 			if queued_attack:
-				combat = ATTACK_2
-				sprite.play("idle_attack_2")
+				combat = LIGHT_ATTACK_2
+				sprite.play("light_attack_2")
 				queued_attack = false
 			else:
 				combat = NO_ATTACK
-		"idle_attack_2":
+		"light_attack_2":
 			combat = NO_ATTACK
-		"run_attack_1":
+		"run_light_attack_1":
+			if queued_attack:
+				combat = LIGHT_ATTACK_2
+				sprite.play("run_light_attack_2")
+				queued_attack = false
+			else:
+				combat = NO_ATTACK
+		"run_light_attack_2":
 			combat = NO_ATTACK
-		"jump_attack_1":
-			combat = NO_ATTACK
-			
+
+
+func _on_animated_sprite_2d_frame_changed() -> void:
+	if sprite.frame > 1 && queued_attack:
+		queued_attack = false
+		match sprite.animation:
+			"light_attack_1":
+				combat = LIGHT_ATTACK_2
+				sprite.play("light_attack_2")
+			"run_light_attack_1":
+				combat = LIGHT_ATTACK_2
+				sprite.play("run_light_attack_2")
+	
+	
