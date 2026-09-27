@@ -71,6 +71,15 @@ func _handle_movement_animation(movement_state: MovementState, dash_running: boo
 		MovementState.IDLE:
 			sprite.play("idle")
 
+func update_dash_animation(dash_running: bool) -> void:
+	var target: StringName = &"run_dash" if dash_running else &"idle_dash"
+	if sprite.animation == target:
+		return
+	var frame := sprite.frame + 7 if dash_running else sprite.frame - 7
+	var progress := sprite.frame_progress
+	sprite.play(target)
+	sprite.set_frame_and_progress(clampi(frame, 8, 15) if dash_running else clampi(frame, 1, 7), progress)
+
 func _on_animation_finished():
 	match sprite.animation:
 		"idle_dash", "run_dash":

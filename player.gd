@@ -102,6 +102,7 @@ func _physics_process(delta: float) -> void:
 		prev_combat = combat
 
 	if dash_active:
+		animation_controller.update_dash_animation(velocity.x != 0)
 		var run_dash = sprite.animation == &"run_dash"
 		var move_frame = 8 if run_dash else 1
 		var distance = RUN_DASH_DISTANCE if run_dash else IDLE_DASH_DISTANCE

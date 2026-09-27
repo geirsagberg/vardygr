@@ -13,6 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Run from command line: `godot --path .`
 - Check dash alignment: `godot --headless --path . --script res://tests/dash_snap.gd`
 - Check dash response: `godot --headless --path . --script res://tests/dash_response.gd`
+- Check dash animation switching: `godot --headless --path . --script res://tests/dash_variant_switch.gd`
 
 ### Project Structure
 - **Main Scene**: `game.tscn` - Root game scene with parallax backgrounds
@@ -48,7 +49,7 @@ Character animations are managed through `AnimatedSprite2D` and `animation_contr
 - Dash: idle_dash, run_dash
 - Combat: light_attack_1/2, run_light_attack_1/2
 
-All animations run at 10 FPS. Dash and attack animations play once and return to movement animations when they finish. Jumping or attacking interrupts dash. Dash starts on the streak frame, moving the player body immediately with collision. The sprite is offset around the body so the next movement animation starts at the same visible position.
+All animations run at 10 FPS. Dash and attack animations play once and return to movement animations when they finish. Jumping or attacking interrupts dash. Dash starts on the streak frame, moving the player body immediately with collision. During dash, the animation switches between idle_dash and run_dash as movement input changes, keeping the matching frame. Each dash animation uses its fixed sprite offset to cancel the horizontal shift baked into its sheet.
 
 ### Input Configuration
 - Movement: A/D keys (left/right)

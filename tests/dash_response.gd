@@ -7,6 +7,7 @@ func _run() -> void:
 	var game: Node2D = load("res://game.tscn").instantiate()
 	root.add_child(game)
 	var player: CharacterBody2D = game.get_node("Player")
+	var sprite: AnimatedSprite2D = player.get_node("AnimatedSprite2D")
 	var camera: Camera2D = game.get_node("CameraTarget/Camera2D")
 	for i in 20:
 		await physics_frame
@@ -39,5 +40,21 @@ func _run() -> void:
 		push_error("Camera jumped %.1f px in one step" % largest_camera_step)
 		quit(1)
 		return
-	print("Running dash responds immediately and camera glides")
+	for i in 4:
+		await physics_frame
+	var standing_start_x := player.global_position.x
+	Input.action_press("dash")
+	for i in 4:
+		await physics_frame
+		await process_frame
+	Input.action_release("dash")
+	if player.global_position.x - standing_start_x < 80.0 or sprite.animation != &"idle_dash":
+		push_error("Standing dash did not move immediately with its animation")
+		quit(1)
+		return
+	if not is_equal_approx(sprite.offset.x, -108.0):
+		push_error("Unswitched standing dash offset changed to %.1f px" % sprite.offset.x)
+		quit(1)
+		return
+	print("Dash responds immediately and camera glides")
 	quit(0)
