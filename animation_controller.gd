@@ -1,11 +1,12 @@
 class_name AnimationController
 extends RefCounted
 
-enum MovementState { IDLE, RUNNING, JUMPING, FALLING }
+enum MovementState { IDLE, RUNNING, JUMPING, FALLING, DASHING }
 enum CombatState { NO_ATTACK, LIGHT_ATTACK_1, LIGHT_ATTACK_2 }
 
 signal attack_finished
 signal attack_can_combo
+signal dash_finished
 
 var sprite: AnimatedSprite2D
 
@@ -14,16 +15,16 @@ func _init(animated_sprite: AnimatedSprite2D):
 	sprite.animation_finished.connect(_on_animation_finished)
 	sprite.frame_changed.connect(_on_frame_changed)
 
-func handle_state_change(movement_state: MovementState, combat_state: CombatState, prev_movement: MovementState, prev_combat: CombatState):
+func handle_state_change(movement_state: MovementState, combat_state: CombatState, prev_movement: MovementState, prev_combat: CombatState, dash_running: bool):
 	if combat_state != prev_combat:
 		if combat_state == CombatState.NO_ATTACK:
-			_handle_movement_animation(movement_state)
+			_handle_movement_animation(movement_state, dash_running)
 		else:
 			_handle_combat_state_change(movement_state, combat_state, prev_combat)
 	elif movement_state != prev_movement and combat_state != CombatState.NO_ATTACK:
 		_handle_movement_during_combat(movement_state, combat_state, prev_movement)
 	elif combat_state == CombatState.NO_ATTACK and movement_state != prev_movement:
-		_handle_movement_animation(movement_state)
+		_handle_movement_animation(movement_state, dash_running)
 
 func _handle_combat_state_change(movement_state: MovementState, combat_state: CombatState, prev_combat: CombatState):
 	match combat_state:
@@ -52,8 +53,15 @@ func _handle_movement_during_combat(movement_state: MovementState, combat_state:
 		sprite.animation = sprite.animation.replace("run_", "")
 		sprite.frame = frame
 
-func _handle_movement_animation(movement_state: MovementState):
+func _handle_movement_animation(movement_state: MovementState, dash_running: bool):
 	match movement_state:
+		MovementState.DASHING:
+			if dash_running:
+				sprite.play("run_dash")
+				sprite.frame = 8
+			else:
+				sprite.play("idle_dash")
+				sprite.frame = 1
 		MovementState.JUMPING:
 			sprite.play("jump")
 		MovementState.FALLING:
@@ -65,6 +73,8 @@ func _handle_movement_animation(movement_state: MovementState):
 
 func _on_animation_finished():
 	match sprite.animation:
+		"idle_dash", "run_dash":
+			dash_finished.emit()
 		"light_attack_1", "run_light_attack_1", "light_attack_2", "run_light_attack_2":
 			attack_finished.emit()
 

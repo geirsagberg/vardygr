@@ -1,15 +1,16 @@
 extends Marker2D
 
-var target_offset_x = 0
+@onready var player: CharacterBody2D = $"../Player"
 
-const SPEED = 200
+var target_offset_x := 0.0
+var _offset_x := 0.0
 
-func _process(delta: float) -> void:
-	if position.x != target_offset_x:
-		if abs(position.x - target_offset_x) < 1.0:
-			position.x = target_offset_x
-		elif position.x < target_offset_x:
-			position.x += delta * SPEED
-		else:
-			position.x -= delta * SPEED
-			
+const SPEED := 200.0
+
+func _ready() -> void:
+	global_position = player.global_position
+	reset_physics_interpolation()
+
+func _physics_process(delta: float) -> void:
+	_offset_x = move_toward(_offset_x, target_offset_x, SPEED * delta)
+	global_position = player.global_position + Vector2(_offset_x, 0)

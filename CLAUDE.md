@@ -4,13 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Vardygr** is a 2D side-scrolling platformer built in Godot 4.4 with pixel art aesthetics. The game features a dark atmospheric character with combat mechanics and smooth parallax backgrounds.
+**Vardygr** is a 2D side-scrolling platformer built in Godot 4.7.2 with pixel art aesthetics. The game features a dark atmospheric character with combat mechanics and smooth parallax backgrounds.
 
 ## Development Commands
 
 ### Running the Game
-- Open in Godot Editor: `godot project.godot`
-- Run from command line: `godot --headless --main-pack game.tscn`
+- Open in Godot Editor: `godot --editor --path .`
+- Run from command line: `godot --path .`
+- Check dash alignment: `godot --headless --path . --script res://tests/dash_snap.gd`
+- Check dash response: `godot --headless --path . --script res://tests/dash_response.gd`
 
 ### Project Structure
 - **Main Scene**: `game.tscn` - Root game scene with parallax backgrounds
@@ -22,34 +24,37 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Player System (`player.gd`)
 The player controller uses a dual-state system:
-- **Movement States**: IDLE, RUNNING, JUMPING, FALLING
-- **Combat States**: NO_ATTACK, ATTACK_1, ATTACK_2, JUMP_ATTACK, RUN_ATTACK_1
+- **Movement States**: IDLE, RUNNING, JUMPING, FALLING, DASHING
+- **Combat States**: NO_ATTACK, LIGHT_ATTACK_1, LIGHT_ATTACK_2
 
 Key constants:
-- `RUN_SPEED = 120`, `GRAVITY = 1000`, `JUMP_SPEED = -250`, `CAMERA_OFFSET = 96`
+- `RUN_SPEED = 120`, `GRAVITY = 1000`, `JUMP_SPEED = -300`, `CAMERA_OFFSET = 96`
 
 Attack system supports combo chains with `queued_attack` mechanism. Context-sensitive attacks change based on movement state (idle/running/jumping).
 
 ### Camera System (`camera_target.gd`)
-Smooth camera following with look-ahead functionality. Camera offset dynamically adjusts based on player direction (`target_offset_x`). Uses interpolation at 200 pixels/second for smooth movement.
+The camera target follows the player on physics ticks. Its look-ahead offset changes with player direction at 200 pixels/second. Camera2D smooths the view. The camera sits beside the player in `game.tscn` so resetting interpolation after a dash does not snap the view.
 
 ### Scene Hierarchy
 - **Game** (Node2D)
   - **ParallaxBackground** with 6 layers (sky, planet, clouds, back, mid, front)
   - **Player** (CharacterBody2D instance)
+  - **CameraTarget** (Marker2D with Camera2D child)
   - **Ground** (StaticBody2D with collision)
 
 ### Animation System
-Character has 11 animations managed through `AnimatedSprite2D`:
+Character animations are managed through `AnimatedSprite2D` and `animation_controller.gd`:
 - Movement: idle, run, walk, jump, fall
-- Combat: idle_attack_1/2, run_attack_1/2, jump_attack_1/2
+- Dash: idle_dash, run_dash
+- Combat: light_attack_1/2, run_light_attack_1/2
 
-All animations run at 10 FPS. Attack animations are non-looping and trigger state changes via `animation_finished` signal.
+All animations run at 10 FPS. Dash and attack animations play once and return to movement animations when they finish. Jumping or attacking interrupts dash. Dash starts on the streak frame, moving the player body immediately with collision. The sprite is offset around the body so the next movement animation starts at the same visible position.
 
 ### Input Configuration
 - Movement: A/D keys (left/right)
 - Jump: Spacebar
 - Attack: J key
+- Dash animation: I key (while grounded and not attacking)
 - All inputs have 0.2 deadzone
 
 ### Display Settings
@@ -61,7 +66,7 @@ All animations run at 10 FPS. Attack animations are non-looping and trigger stat
 ## Development Notes
 
 ### Working with Animations
-When adding new animations, ensure they're added to the AnimatedSprite2D node in `player.tscn` and handle state transitions in the `_on_animated_sprite_2d_animation_finished()` function.
+When adding new animations, add them to the AnimatedSprite2D node in `player.tscn` and handle state transitions in `animation_controller.gd`.
 
 ### Physics System
 Uses Godot's CharacterBody2D with `move_and_slide()`. Ground collision uses WorldBoundaryShape2D for infinite ground plane.
@@ -70,4 +75,4 @@ Uses Godot's CharacterBody2D with `move_and_slide()`. Ground collision uses Worl
 Character sprites are organized in `/sprites/dark-hollow.png` as a 256x128 grid. Background assets in `/assets/` are used for parallax layers with different scroll speeds.
 
 ### State Management
-The dual-state system allows independent tracking of movement and combat states, enabling context-sensitive animations and preventing movement during attack animations.
+The dual-state system tracks movement and combat separately so attacks can use different animations while standing or running.
